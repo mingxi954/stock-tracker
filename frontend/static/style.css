@@ -209,10 +209,71 @@ header p {
     letter-spacing: -0.3px;
 }
 
+.stock-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .stock-current-price {
     font-size: 1.3rem;
     font-weight: 700;
     color: #e0e0e0;
+}
+
+.btn-remove {
+    background: none;
+    border: 1px solid #333;
+    color: #555;
+    font-size: 1.2rem;
+    line-height: 1;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-remove:hover {
+    color: #f87171;
+    border-color: #f87171;
+}
+
+.btn-hide {
+    background: none;
+    border: none;
+    color: #444;
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    transition: color 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.btn-hide:hover {
+    color: #888;
+}
+
+.btn-show-hidden {
+    background: none;
+    border: 1px dashed #333;
+    color: #555;
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 4px;
+    width: 100%;
+    margin-top: 4px;
+    transition: all 0.2s;
+}
+
+.btn-show-hidden:hover {
+    color: #aaa;
+    border-color: #555;
 }
 
 .price-positive {

@@ -97,6 +97,7 @@ def get_stocks():
             'date_noticed': stock['date_noticed'],
             'price_noticed': stock['price_noticed'],
             'notes': stock['notes'],
+            'created_at': stock['created_at'],
         })
 
     symbols = list(grouped.keys())
@@ -123,8 +124,8 @@ def get_stocks():
                     entry['change_percent'] = round(change_percent, 2)
 
     result = list(grouped.values())
-    # Sort stocks so the one with the newest notice comes first
-    result.sort(key=lambda g: g['entries'][0]['date_noticed'] if g['entries'] else '', reverse=True)
+    # Sort stocks so the one with the newest notice comes first (by created_at)
+    result.sort(key=lambda g: g['entries'][0]['created_at'] if g['entries'] else '', reverse=True)
     return jsonify(result)
 
 @app.route('/api/stocks', methods=['POST'])
@@ -158,6 +159,13 @@ def delete_stock(stock_id):
     if database.delete_stock(stock_id):
         return jsonify({'message': 'Stock deleted successfully'}), 200
     return jsonify({'error': 'Stock not found'}), 404
+
+@app.route('/api/stocks/symbol/<symbol>', methods=['DELETE'])
+def delete_stock_symbol(symbol):
+    """Delete all entries for a symbol (stop tracking)."""
+    if database.delete_stocks_by_symbol(symbol):
+        return jsonify({'message': f'{symbol.upper()} removed'}), 200
+    return jsonify({'error': 'Symbol not found'}), 404
 
 def get_daily_history(symbol, period='3mo'):
     """Fetch daily close prices for the given symbol and period (cached)."""

@@ -1,5 +1,7 @@
 const API_BASE = '';
 const chartInstances = {};
+const hiddenEntries = new Set(JSON.parse(localStorage.getItem('hiddenEntries') || '[]'));
+let lastLoadedStocks = null;
 
 // Set today's date as default
 document.getElementById('dateNoticed').valueAsDate = new Date();
@@ -112,6 +114,7 @@ async function loadStocks() {
     try {
         const response = await fetch(`${API_BASE}/api/stocks`);
         const stocks = await response.json();
+        lastLoadedStocks = stocks;
 
         loading.style.display = 'none';
 
@@ -145,11 +148,17 @@ function createStockCard(stock) {
 
     const cardId = `sym-${stock.symbol}`;
 
+    const visibleEntries = stock.entries.filter(e => !hiddenEntries.has(e.id));
+    const hiddenCount = stock.entries.length - visibleEntries.length;
+
     card.innerHTML = `
         <div class="stock-header">
             <div class="stock-symbol">${stock.symbol}</div>
-            <div class="stock-current-price">
-                ${stock.current_price ? `$${stock.current_price.toFixed(2)}` : 'N/A'}
+            <div class="stock-header-right">
+                <div class="stock-current-price">
+                    ${stock.current_price ? `$${stock.current_price.toFixed(2)}` : 'N/A'}
+                </div>
+                <button class="btn-remove" data-symbol="${stock.symbol}" title="Stop tracking ${stock.symbol}">×</button>
             </div>
         </div>
 
@@ -170,9 +179,8 @@ function createStockCard(stock) {
         <div class="entries-section">
             <div class="entries-header">Notices</div>
             <div class="entries-list">
-                ${stock.entries.map(entry => {
+                ${visibleEntries.map(entry => {
                     const hasChange = entry.change !== undefined;
-                    const changeClass = hasChange && entry.change >= 0 ? 'price-positive' : 'price-negative';
                     const badgeClass = hasChange && entry.change >= 0 ? 'change-positive' : 'change-negative';
                     const sign = hasChange && entry.change >= 0 ? '+' : '';
                     return `
@@ -182,10 +190,14 @@ function createStockCard(stock) {
                                 <span class="entry-price">$${entry.price_noticed.toFixed(2)}</span>
                                 ${hasChange ? `<span class="change-badge ${badgeClass}">${sign}$${entry.change} (${sign}${entry.change_percent}%)</span>` : ''}
                             </div>
-                            ${entry.notes ? `<div class="entry-actions"><span class="entry-notes">${entry.notes}</span></div>` : ''}
+                            <div class="entry-actions">
+                                ${entry.notes ? `<span class="entry-notes">${entry.notes}</span>` : ''}
+                                <button class="btn-hide" data-entry-id="${entry.id}" title="Hide this notice">hide</button>
+                            </div>
                         </div>
                     `;
                 }).join('')}
+                ${hiddenCount > 0 ? `<button class="btn-show-hidden" data-symbol="${stock.symbol}">${hiddenCount} hidden — show all</button>` : ''}
             </div>
         </div>
     `;
@@ -317,19 +329,68 @@ async function loadChart(stockId, symbol, period) {
     }
 }
 
-// Event delegation for period buttons
-document.getElementById('stocksContainer').addEventListener('click', (e) => {
-    const btn = e.target.closest('.btn-period');
-    if (!btn) return;
+// Event delegation for stocksContainer buttons
+document.getElementById('stocksContainer').addEventListener('click', async (e) => {
+    // Period buttons
+    const periodBtn = e.target.closest('.btn-period');
+    if (periodBtn) {
+        const { stockId, symbol, period } = periodBtn.dataset;
+        const container = periodBtn.closest('.chart-period-buttons');
+        container.querySelectorAll('.btn-period').forEach(b => b.classList.remove('active'));
+        periodBtn.classList.add('active');
+        loadChart(stockId, symbol, period);
+        return;
+    }
 
-    const { stockId, symbol, period } = btn.dataset;
+    // Hide notice
+    const hideBtn = e.target.closest('.btn-hide');
+    if (hideBtn) {
+        const id = Number(hideBtn.dataset.entryId);
+        hiddenEntries.add(id);
+        localStorage.setItem('hiddenEntries', JSON.stringify([...hiddenEntries]));
+        loadStocks();
+        return;
+    }
 
-    // Update active button state
-    const container = btn.closest('.chart-period-buttons');
-    container.querySelectorAll('.btn-period').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    // Show all hidden notices for a symbol
+    const showBtn = e.target.closest('.btn-show-hidden');
+    if (showBtn) {
+        // Unhide all entries for this symbol by reloading with no filter
+        // We need the stock data, so just clear hidden for entries in this card
+        const card = showBtn.closest('.stock-card');
+        card.querySelectorAll('.btn-hide').forEach(b => {
+            hiddenEntries.delete(Number(b.dataset.entryId));
+        });
+        // Also unhide the ones currently hidden — get from cached stocks
+        if (lastLoadedStocks) {
+            const symbol = showBtn.dataset.symbol;
+            const group = lastLoadedStocks.find(s => s.symbol === symbol);
+            if (group) {
+                group.entries.forEach(e => hiddenEntries.delete(e.id));
+            }
+        }
+        localStorage.setItem('hiddenEntries', JSON.stringify([...hiddenEntries]));
+        loadStocks();
+        return;
+    }
 
-    loadChart(stockId, symbol, period);
+    // Remove stock (stop tracking)
+    const removeBtn = e.target.closest('.btn-remove');
+    if (removeBtn) {
+        const symbol = removeBtn.dataset.symbol;
+        if (!confirm(`Stop tracking ${symbol}? This removes all notices.`)) return;
+        try {
+            const resp = await fetch(`${API_BASE}/api/stocks/symbol/${symbol}`, { method: 'DELETE' });
+            if (resp.ok) {
+                showToast(`${symbol} removed`, 'success');
+                loadStocks();
+            } else {
+                showToast('Error removing stock', 'error');
+            }
+        } catch (err) {
+            showToast(`Error: ${err.message}`, 'error');
+        }
+    }
 });
 
 // Toast notification system

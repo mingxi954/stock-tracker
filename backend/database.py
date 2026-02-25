@@ -46,7 +46,7 @@ def get_all_stocks():
     """Get all tracked stocks."""
     with get_db() as conn:
         cursor = conn.execute(
-            'SELECT * FROM tracked_stocks ORDER BY date_noticed DESC'
+            'SELECT * FROM tracked_stocks ORDER BY created_at DESC'
         )
         return [dict(row) for row in cursor.fetchall()]
 
@@ -54,6 +54,12 @@ def delete_stock(stock_id):
     """Delete a tracked stock."""
     with get_db() as conn:
         conn.execute('DELETE FROM tracked_stocks WHERE id = ?', (stock_id,))
+        return conn.total_changes > 0
+
+def delete_stocks_by_symbol(symbol):
+    """Delete all entries for a symbol."""
+    with get_db() as conn:
+        conn.execute('DELETE FROM tracked_stocks WHERE symbol = ?', (symbol.upper(),))
         return conn.total_changes > 0
 
 def get_stock(stock_id):
