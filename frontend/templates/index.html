@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Tracker</title>
+    <title>Hindsight</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Stock Tracker</h1>
-            <p>Keep track of stocks you notice and monitor their performance</p>
+            <h1>Hindsight</h1>
+            <p>Track what you notice. Learn what you miss.</p>
         </header>
 
         <div class="add-stock-section">
@@ -25,18 +25,14 @@
                         <label for="dateNoticed">Date Noticed</label>
                         <input type="date" id="dateNoticed" required>
                     </div>
-                    <div class="form-group">
-                        <label for="priceNoticed">Price ($)</label>
-                        <input type="number" id="priceNoticed" step="0.01" placeholder="0.00" required>
-                    </div>
                 </div>
                 <div class="form-group">
                     <label for="notes">Notes</label>
                     <textarea id="notes" rows="2" placeholder="Why did you notice this stock?"></textarea>
                 </div>
+                <input type="hidden" id="priceNoticed" value="0">
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">Add Stock</button>
-                    <button type="button" id="fetchPriceBtn" class="btn btn-secondary">Fetch Current Price</button>
                 </div>
             </form>
         </div>

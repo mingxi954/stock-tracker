@@ -15,7 +15,7 @@ document.getElementById('addStockForm').addEventListener('submit', async (e) => 
 
     const symbol = document.getElementById('symbol').value.toUpperCase();
     const dateNoticed = document.getElementById('dateNoticed').value;
-    const priceNoticed = parseFloat(document.getElementById('priceNoticed').value);
+    let priceNoticed = parseFloat(document.getElementById('priceNoticed').value);
     const notes = document.getElementById('notes').value;
 
     const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -23,6 +23,20 @@ document.getElementById('addStockForm').addEventListener('submit', async (e) => 
     submitBtn.textContent = 'Adding...';
 
     try {
+        // Auto-fetch price if not yet fetched
+        if (!priceNoticed || priceNoticed === 0) {
+            const priceResp = await fetch(`${API_BASE}/api/price/${symbol}`);
+            if (priceResp.ok) {
+                const priceData = await priceResp.json();
+                priceNoticed = priceData.price;
+                document.getElementById('priceNoticed').value = priceNoticed;
+            } else {
+                showToast(`Could not fetch price for ${symbol}`, 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Add Stock';
+                return;
+            }
+        }
         const response = await fetch(`${API_BASE}/api/stocks`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -37,6 +51,7 @@ document.getElementById('addStockForm').addEventListener('submit', async (e) => 
         if (response.ok) {
             document.getElementById('addStockForm').reset();
             document.getElementById('dateNoticed').valueAsDate = new Date();
+            lastFetchedSymbol = '';
             loadStocks();
             showToast(`${symbol} added successfully`, 'success');
         } else {
@@ -51,34 +66,21 @@ document.getElementById('addStockForm').addEventListener('submit', async (e) => 
     }
 });
 
-// Fetch current price button
-document.getElementById('fetchPriceBtn').addEventListener('click', async () => {
+// Auto-fetch current price when symbol is entered
+let lastFetchedSymbol = '';
+document.getElementById('symbol').addEventListener('blur', async () => {
     const symbol = document.getElementById('symbol').value.trim().toUpperCase();
-
-    if (!symbol) {
-        showToast('Enter a stock symbol first', 'error');
-        return;
-    }
-
-    const btn = document.getElementById('fetchPriceBtn');
-    btn.disabled = true;
-    btn.textContent = 'Fetching...';
+    if (!symbol || symbol === lastFetchedSymbol) return;
 
     try {
         const response = await fetch(`${API_BASE}/api/price/${symbol}`);
-
         if (response.ok) {
             const data = await response.json();
             document.getElementById('priceNoticed').value = data.price;
-            showToast(`${symbol}: $${data.price}`, 'success');
-        } else {
-            showToast(`Could not fetch price for ${symbol}`, 'error');
+            lastFetchedSymbol = symbol;
         }
     } catch (error) {
-        showToast(`Network error: ${error.message}`, 'error');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Fetch Current Price';
+        // Silently fail — price will be fetched on submit if needed
     }
 });
 
