@@ -1,4 +1,5 @@
 const API_BASE = '';
+const chartInstances = {};
 
 // Set today's date as default
 document.getElementById('dateNoticed').valueAsDate = new Date();
@@ -97,6 +98,12 @@ async function loadStocks() {
     const container = document.getElementById('stocksContainer');
     const loading = document.getElementById('loadingMessage');
 
+    // Destroy existing chart instances to prevent memory leaks
+    for (const id of Object.keys(chartInstances)) {
+        chartInstances[id].destroy();
+        delete chartInstances[id];
+    }
+
     loading.style.display = 'block';
     container.innerHTML = '';
 
@@ -114,87 +121,73 @@ async function loadStocks() {
         stocks.forEach(stock => {
             container.appendChild(createStockCard(stock));
         });
+
+        // Kick off chart loading for each stock (parallel, non-blocking)
+        stocks.forEach(stock => {
+            loadChart(`sym-${stock.symbol}`, stock.symbol, '1mo');
+        });
     } catch (error) {
         loading.style.display = 'none';
         container.innerHTML = `<p class="loading">Error loading stocks: ${error.message}</p>`;
     }
 }
 
-// Create a stock card element
+// Create a stock card element (stock is now a grouped object with entries[])
 function createStockCard(stock) {
     const card = document.createElement('div');
     card.className = 'stock-card';
 
-    const changeClass = stock.change >= 0 ? 'price-positive' : 'price-negative';
-    const changeBadgeClass = stock.change >= 0 ? 'change-positive' : 'change-negative';
-    const changeSign = stock.change >= 0 ? '+' : '';
+    const cardId = `sym-${stock.symbol}`;
 
     card.innerHTML = `
         <div class="stock-header">
             <div class="stock-symbol">${stock.symbol}</div>
-            <div>
-                ${stock.change !== undefined ? `
-                    <span class="change-badge ${changeBadgeClass}">
-                        ${changeSign}$${stock.change} (${changeSign}${stock.change_percent}%)
-                    </span>
-                ` : ''}
+            <div class="stock-current-price">
+                ${stock.current_price ? `$${stock.current_price.toFixed(2)}` : 'N/A'}
             </div>
         </div>
 
-        <div class="stock-info">
-            <div class="info-item">
-                <div class="info-label">Date Noticed</div>
-                <div class="info-value">${formatDate(stock.date_noticed)}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Price When Noticed</div>
-                <div class="info-value">$${stock.price_noticed.toFixed(2)}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Current Price</div>
-                <div class="info-value ${changeClass}">
-                    ${stock.current_price ? `$${stock.current_price.toFixed(2)}` : 'N/A'}
+        <div class="chart-container" id="chart-container-${cardId}">
+            <div class="chart-header">
+                <span class="chart-title">Price History</span>
+                <div class="chart-period-buttons">
+                    <button class="btn-period active" data-stock-id="${cardId}" data-symbol="${stock.symbol}" data-period="1mo">1M</button>
+                    <button class="btn-period" data-stock-id="${cardId}" data-symbol="${stock.symbol}" data-period="3mo">3M</button>
+                    <button class="btn-period" data-stock-id="${cardId}" data-symbol="${stock.symbol}" data-period="6mo">6M</button>
+                    <button class="btn-period" data-stock-id="${cardId}" data-symbol="${stock.symbol}" data-period="1yr">1Y</button>
                 </div>
             </div>
+            <div class="chart-loading" id="chart-loading-${cardId}">Loading chart...</div>
+            <canvas id="chart-${cardId}"></canvas>
         </div>
 
-        <div class="historical-prices">
-            ${createHistoricalItem('1 Day', stock.price_1d)}
-            ${createHistoricalItem('1 Week', stock.price_1wk)}
-            ${createHistoricalItem('1 Month', stock.price_1mo)}
-            ${createHistoricalItem('3 Months', stock.price_3mo)}
-        </div>
-
-        ${stock.notes ? `
-            <div class="stock-notes">${stock.notes}</div>
-        ` : ''}
-
-        <div class="stock-actions">
-            <button class="btn btn-danger" onclick="deleteStock(${stock.id})">Delete</button>
+        <div class="entries-section">
+            <div class="entries-header">Notices</div>
+            <div class="entries-list">
+                ${stock.entries.map(entry => {
+                    const hasChange = entry.change !== undefined;
+                    const changeClass = hasChange && entry.change >= 0 ? 'price-positive' : 'price-negative';
+                    const badgeClass = hasChange && entry.change >= 0 ? 'change-positive' : 'change-negative';
+                    const sign = hasChange && entry.change >= 0 ? '+' : '';
+                    return `
+                        <div class="entry-row">
+                            <div class="entry-info">
+                                <span class="entry-date">${formatDate(entry.date_noticed)}</span>
+                                <span class="entry-price">$${entry.price_noticed.toFixed(2)}</span>
+                                ${hasChange ? `<span class="change-badge ${badgeClass}">${sign}$${entry.change} (${sign}${entry.change_percent}%)</span>` : ''}
+                            </div>
+                            <div class="entry-actions">
+                                ${entry.notes ? `<span class="entry-notes">${entry.notes}</span>` : ''}
+                                <button class="btn btn-danger" onclick="deleteStock(${entry.id})">Delete</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
         </div>
     `;
 
     return card;
-}
-
-// Create historical price item HTML
-function createHistoricalItem(label, priceData) {
-    if (!priceData || !priceData.price) {
-        return `
-            <div class="historical-item">
-                <div class="historical-label">${label}</div>
-                <div class="historical-value">--</div>
-            </div>
-        `;
-    }
-
-    return `
-        <div class="historical-item">
-            <div class="historical-label">${label}</div>
-            <div class="historical-value">$${priceData.price.toFixed(2)}</div>
-            <div class="historical-date">${formatDate(priceData.date)}</div>
-        </div>
-    `;
 }
 
 // Delete stock
@@ -226,6 +219,127 @@ function formatDate(dateString) {
         day: 'numeric'
     });
 }
+
+// Load chart for a stock card
+async function loadChart(stockId, symbol, period) {
+    const canvas = document.getElementById(`chart-${stockId}`);
+    const loadingEl = document.getElementById(`chart-loading-${stockId}`);
+    if (!canvas) return;
+
+    loadingEl.style.display = 'block';
+    canvas.style.display = 'none';
+
+    try {
+        const response = await fetch(`${API_BASE}/api/history/${symbol}?period=${period}`);
+        const result = await response.json();
+
+        loadingEl.style.display = 'none';
+        canvas.style.display = 'block';
+
+        if (!result.data || result.data.length === 0) {
+            loadingEl.textContent = 'No chart data available';
+            loadingEl.style.display = 'block';
+            canvas.style.display = 'none';
+            return;
+        }
+
+        const labels = result.data.map(d => d.date);
+        const prices = result.data.map(d => d.price);
+        const isUptrend = prices[prices.length - 1] >= prices[0];
+        const lineColor = isUptrend ? '#4ade80' : '#f87171';
+        const fillColor = isUptrend ? 'rgba(74, 222, 128, 0.08)' : 'rgba(248, 113, 113, 0.08)';
+
+        // Destroy existing chart instance
+        if (chartInstances[stockId]) {
+            chartInstances[stockId].destroy();
+        }
+
+        chartInstances[stockId] = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    data: prices,
+                    borderColor: lineColor,
+                    backgroundColor: fillColor,
+                    borderWidth: 2,
+                    fill: true,
+                    pointRadius: 0,
+                    pointHitRadius: 8,
+                    tension: 0.3,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1a1a1a',
+                        titleColor: '#888',
+                        bodyColor: '#e0e0e0',
+                        borderColor: '#333',
+                        borderWidth: 1,
+                        titleFont: { size: 11 },
+                        bodyFont: { size: 13, weight: '600' },
+                        padding: 10,
+                        displayColors: false,
+                        callbacks: {
+                            label: ctx => `$${ctx.parsed.y.toFixed(2)}`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: '#555',
+                            maxTicksLimit: 6,
+                            font: { size: 10 },
+                        },
+                        grid: { display: false },
+                        border: { display: false },
+                    },
+                    y: {
+                        position: 'right',
+                        ticks: {
+                            color: '#555',
+                            maxTicksLimit: 5,
+                            font: { size: 10 },
+                            callback: v => '$' + v.toFixed(0),
+                        },
+                        grid: {
+                            color: 'rgba(255,255,255,0.04)',
+                        },
+                        border: { display: false },
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index',
+                },
+            }
+        });
+    } catch (error) {
+        loadingEl.textContent = 'Failed to load chart';
+        loadingEl.style.display = 'block';
+        canvas.style.display = 'none';
+    }
+}
+
+// Event delegation for period buttons
+document.getElementById('stocksContainer').addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-period');
+    if (!btn) return;
+
+    const { stockId, symbol, period } = btn.dataset;
+
+    // Update active button state
+    const container = btn.closest('.chart-period-buttons');
+    container.querySelectorAll('.btn-period').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    loadChart(stockId, symbol, period);
+});
 
 // Toast notification system
 function showToast(message, type) {

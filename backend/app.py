@@ -46,49 +46,6 @@ def get_current_price(symbol):
         print(f"Error fetching current price for {symbol}: {e}")
         return None
 
-def get_historical_prices(symbol):
-    """Fetch historical prices for the given symbol."""
-    try:
-        stock = yf.Ticker(symbol)
-        prices = {}
-
-        period_configs = [
-            ('1d', 5),
-            ('1wk', 10),
-            ('1mo', 35),
-            ('3mo', 95),
-        ]
-
-        # Fetch 3 months of data in one call to avoid repeated API hits
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=95)
-        hist = stock.history(start=start_date, end=end_date)
-
-        if hist.empty:
-            return {key: None for key, _ in period_configs}
-
-        for period_key, target_days in period_configs:
-            target_date = end_date - timedelta(days=target_days)
-            # Find the closest available date
-            available = hist[hist.index <= target_date.strftime('%Y-%m-%d %H:%M:%S%z') if hist.index.tz else target_date]
-            if available.empty:
-                # If no data before target, use earliest available
-                available = hist.head(1)
-
-            if not available.empty:
-                row = available.iloc[-1]
-                prices[period_key] = {
-                    'price': round(float(row['Close']), 2),
-                    'date': available.index[-1].strftime('%Y-%m-%d')
-                }
-            else:
-                prices[period_key] = None
-
-        return prices
-    except Exception as e:
-        print(f"Error fetching historical prices for {symbol}: {e}")
-        return {'1d': None, '1wk': None, '1mo': None, '3mo': None}
-
 @app.route('/')
 def index():
     """Serve the main page."""
@@ -96,39 +53,45 @@ def index():
 
 @app.route('/api/stocks', methods=['GET'])
 def get_stocks():
-    """Get all tracked stocks with current and historical prices."""
+    """Get all tracked stocks grouped by symbol with current prices."""
     stocks = database.get_all_stocks()
 
+    # Group entries by symbol
+    grouped = {}
     for stock in stocks:
         symbol = stock['symbol']
+        if symbol not in grouped:
+            grouped[symbol] = {
+                'symbol': symbol,
+                'entries': [],
+                'current_price': None,
+            }
+        grouped[symbol]['entries'].append({
+            'id': stock['id'],
+            'date_noticed': stock['date_noticed'],
+            'price_noticed': stock['price_noticed'],
+            'notes': stock['notes'],
+        })
 
+    result = []
+    for symbol, group in grouped.items():
         try:
-            # Get current price
             current_price = get_current_price(symbol)
-            stock['current_price'] = current_price
+            group['current_price'] = current_price
 
-            # Get historical prices
-            historical = get_historical_prices(symbol)
-            stock['price_1d'] = historical.get('1d')
-            stock['price_1wk'] = historical.get('1wk')
-            stock['price_1mo'] = historical.get('1mo')
-            stock['price_3mo'] = historical.get('3mo')
-
-            # Calculate change since noticed
-            if current_price and stock['price_noticed']:
-                change = current_price - stock['price_noticed']
-                change_percent = (change / stock['price_noticed']) * 100
-                stock['change'] = round(change, 2)
-                stock['change_percent'] = round(change_percent, 2)
+            # Calculate change for each entry
+            for entry in group['entries']:
+                if current_price and entry['price_noticed']:
+                    change = current_price - entry['price_noticed']
+                    change_percent = (change / entry['price_noticed']) * 100
+                    entry['change'] = round(change, 2)
+                    entry['change_percent'] = round(change_percent, 2)
         except Exception as e:
             print(f"Error enriching stock {symbol}: {e}")
-            stock['current_price'] = None
-            stock['price_1d'] = None
-            stock['price_1wk'] = None
-            stock['price_1mo'] = None
-            stock['price_3mo'] = None
 
-    return jsonify(stocks)
+        result.append(group)
+
+    return jsonify(result)
 
 @app.route('/api/stocks', methods=['POST'])
 def add_stock():
@@ -161,6 +124,44 @@ def delete_stock(stock_id):
     if database.delete_stock(stock_id):
         return jsonify({'message': 'Stock deleted successfully'}), 200
     return jsonify({'error': 'Stock not found'}), 404
+
+def get_daily_history(symbol, period='3mo'):
+    """Fetch daily close prices for the given symbol and period."""
+    period_days = {
+        '1mo': 31,
+        '3mo': 92,
+        '6mo': 183,
+        '1yr': 365,
+    }
+    days = period_days.get(period, 92)
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days)
+
+    try:
+        stock = yf.Ticker(symbol)
+        hist = stock.history(start=start_date, end=end_date)
+        if hist.empty:
+            return []
+        data = []
+        for idx, row in hist.iterrows():
+            data.append({
+                'date': idx.strftime('%Y-%m-%d'),
+                'price': round(float(row['Close']), 2)
+            })
+        return data
+    except Exception as e:
+        print(f"Error fetching daily history for {symbol}: {e}")
+        return []
+
+@app.route('/api/history/<symbol>', methods=['GET'])
+def get_history(symbol):
+    """Get daily price history for a symbol."""
+    period = request.args.get('period', '3mo')
+    if period not in ('1mo', '3mo', '6mo', '1yr'):
+        period = '3mo'
+    symbol = symbol.upper()
+    data = get_daily_history(symbol, period)
+    return jsonify({'symbol': symbol, 'period': period, 'data': data})
 
 @app.route('/api/price/<symbol>', methods=['GET'])
 def get_price(symbol):
