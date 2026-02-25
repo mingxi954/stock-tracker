@@ -41,29 +41,27 @@ This is a Flask-based web application with a REST API backend and vanilla JavaSc
 
 The application fetches stock data in two ways:
 
-1. **Current prices** (`get_current_price`): Uses `yf.Ticker(symbol).history(period='1d')` to get the latest close price
+1. **Current prices** (`get_current_price`): Uses `yf.Ticker(symbol).fast_info` with fallbacks to get the latest price
 
-2. **Historical prices** (`get_historical_prices`): Fetches prices from specific time periods
-   - Maps periods ('1d', '1wk', '1mo', '3mo') to day ranges (2, 7, 31, 92 days)
-   - Returns the **oldest** close price in each period (via `iloc[0]`)
-   - This approach shows what the price was N days/weeks/months ago
+2. **Daily history** (`get_daily_history`): Fetches daily close prices for chart rendering
+   - Supports periods: 1mo, 3mo, 6mo, 1yr
+   - Returns array of `{date, price}` objects
 
 ### API Endpoints
 
 - `GET /` - Serves the main HTML page
-- `GET /api/stocks` - Returns all tracked stocks with enriched price data (current + historical + calculated changes)
+- `GET /api/stocks` - Returns stocks grouped by symbol, each with entries[] (date_noticed, price_noticed, change info) and current_price
 - `POST /api/stocks` - Add new stock (requires: symbol, date_noticed, price_noticed, optional notes)
-- `DELETE /api/stocks/<id>` - Delete a tracked stock
+- `DELETE /api/stocks/<id>` - Delete a tracked stock entry
 - `GET /api/price/<symbol>` - Get current price for a symbol (used by "Fetch Current Price" button)
+- `GET /api/history/<symbol>?period=3mo` - Get daily price history for charts (periods: 1mo, 3mo, 6mo, 1yr)
 
 ### Data Flow
 
 1. User adds stock via form → POST to `/api/stocks` → stored in SQLite
-2. Frontend loads stocks → GET `/api/stocks` → backend enriches each stock with:
-   - Current price from yfinance
-   - Historical prices (1d, 1wk, 1mo, 3mo ago)
-   - Calculated change ($ and %) since date_noticed
-3. All stock data fetching happens server-side; frontend receives enriched JSON
+2. Frontend loads stocks → GET `/api/stocks` → backend groups entries by symbol, enriches with current price and per-entry change calculations
+3. Frontend renders one card per symbol with a Chart.js line chart and a list of noticed entries
+4. Charts load lazily via `/api/history/<symbol>` after cards render
 
 ## Database Schema
 

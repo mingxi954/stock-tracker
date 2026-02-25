@@ -209,30 +209,9 @@ header p {
     letter-spacing: -0.3px;
 }
 
-.stock-info {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 12px;
-}
-
-.info-item {
-    background: #151515;
-    padding: 12px;
-    border-radius: 6px;
-}
-
-.info-label {
-    font-size: 0.75rem;
-    color: #666;
-    margin-bottom: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-}
-
-.info-value {
-    font-size: 1.1rem;
-    font-weight: 600;
+.stock-current-price {
+    font-size: 1.3rem;
+    font-weight: 700;
     color: #e0e0e0;
 }
 
@@ -242,42 +221,6 @@ header p {
 
 .price-negative {
     color: #f87171;
-}
-
-/* Historical Prices Grid */
-.historical-prices {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 12px;
-}
-
-.historical-item {
-    background: #151515;
-    padding: 12px;
-    border-radius: 6px;
-    text-align: center;
-}
-
-.historical-label {
-    font-size: 0.75rem;
-    color: #666;
-    font-weight: 600;
-    margin-bottom: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-}
-
-.historical-value {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #e0e0e0;
-}
-
-.historical-date {
-    font-size: 0.7rem;
-    color: #555;
-    margin-top: 4px;
 }
 
 /* Chart Container */
@@ -342,19 +285,65 @@ header p {
     height: 200px !important;
 }
 
-.stock-notes {
+/* Entries Section */
+.entries-section {
+    margin-top: 4px;
+}
+
+.entries-header {
+    font-size: 0.75rem;
+    color: #666;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 8px;
+}
+
+.entries-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.entry-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     background: #151515;
     padding: 10px 12px;
     border-radius: 6px;
-    margin-bottom: 12px;
-    color: #888;
-    font-size: 0.9rem;
-    border-left: 3px solid #333;
 }
 
-.stock-actions {
+.entry-info {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+}
+
+.entry-date {
+    color: #888;
+    font-size: 0.85rem;
+}
+
+.entry-price {
+    color: #e0e0e0;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.entry-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.entry-notes {
+    color: #666;
+    font-size: 0.8rem;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Change Badges */
@@ -429,14 +418,6 @@ header p {
         grid-template-columns: 1fr;
     }
 
-    .stock-info {
-        grid-template-columns: 1fr;
-    }
-
-    .historical-prices {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
     .section-header {
         flex-direction: column;
         gap: 12px;
@@ -450,5 +431,16 @@ header p {
 
     .chart-container canvas {
         height: 160px !important;
+    }
+
+    .entry-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .entry-actions {
+        width: 100%;
+        justify-content: space-between;
     }
 }
