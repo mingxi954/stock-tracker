@@ -11,7 +11,7 @@ pip install -r requirements.txt
 # Run the Flask development server
 python backend/app.py
 
-# Access at http://localhost:5000
+# Access at http://localhost:5001
 ```
 
 ## Architecture Overview
@@ -85,7 +85,7 @@ Database file: `stocks.db` (created automatically in project root)
 - **No tests**: This is a simple prototype without a test suite
 - **No authentication**: Single-user local application
 - **External dependency**: Requires internet connection for yfinance API
-- **Port**: Runs on port 5000 by default
+- **Port**: Runs on port 5001 by default, bound to 0.0.0.0 (all interfaces)
 - **Debug mode**: Enabled by default (`app.run(debug=True)`)
 - **CORS**: Enabled via flask-cors for potential frontend development
 

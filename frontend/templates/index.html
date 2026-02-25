@@ -9,43 +9,49 @@
 <body>
     <div class="container">
         <header>
-            <h1>📈 Stock Tracker</h1>
+            <h1>Stock Tracker</h1>
             <p>Keep track of stocks you notice and monitor their performance</p>
         </header>
 
         <div class="add-stock-section">
             <h2>Add New Stock</h2>
             <form id="addStockForm">
-                <div class="form-group">
-                    <label for="symbol">Stock Symbol *</label>
-                    <input type="text" id="symbol" placeholder="e.g., AAPL, TSLA" required>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="symbol">Symbol</label>
+                        <input type="text" id="symbol" placeholder="AAPL" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dateNoticed">Date Noticed</label>
+                        <input type="date" id="dateNoticed" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="priceNoticed">Price ($)</label>
+                        <input type="number" id="priceNoticed" step="0.01" placeholder="0.00" required>
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label for="dateNoticed">Date Noticed *</label>
-                    <input type="date" id="dateNoticed" required>
-                </div>
-                <div class="form-group">
-                    <label for="priceNoticed">Price When Noticed ($) *</label>
-                    <input type="number" id="priceNoticed" step="0.01" placeholder="0.00" required>
-                </div>
-                <div class="form-group">
-                    <label for="notes">Notes (Optional)</label>
+                    <label for="notes">Notes</label>
                     <textarea id="notes" rows="2" placeholder="Why did you notice this stock?"></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary">Add Stock</button>
-                <button type="button" id="fetchPriceBtn" class="btn btn-secondary">Fetch Current Price</button>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Add Stock</button>
+                    <button type="button" id="fetchPriceBtn" class="btn btn-secondary">Fetch Current Price</button>
+                </div>
             </form>
         </div>
 
         <div class="stocks-section">
             <div class="section-header">
                 <h2>Tracked Stocks</h2>
-                <button id="refreshBtn" class="btn btn-secondary">🔄 Refresh Prices</button>
+                <button id="refreshBtn" class="btn btn-secondary">Refresh Prices</button>
             </div>
             <div id="loadingMessage" class="loading">Loading stocks...</div>
             <div id="stocksContainer"></div>
         </div>
     </div>
+
+    <div class="toast-container" id="toastContainer"></div>
 
     <script src="/static/app.js"></script>
 </body>

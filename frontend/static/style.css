@@ -6,120 +6,157 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #0a0a0a;
     min-height: 100vh;
     padding: 20px;
-    color: #333;
+    color: #e0e0e0;
 }
 
 .container {
-    max-width: 1400px;
+    max-width: 1200px;
     margin: 0 auto;
 }
 
 header {
     text-align: center;
-    color: white;
+    color: #fff;
     margin-bottom: 40px;
+    padding: 20px 0;
 }
 
 header h1 {
-    font-size: 3rem;
-    margin-bottom: 10px;
+    font-size: 2.4rem;
+    margin-bottom: 6px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
 }
 
 header p {
-    font-size: 1.2rem;
-    opacity: 0.9;
+    font-size: 1rem;
+    color: #888;
 }
 
+/* Form Section */
 .add-stock-section {
-    background: white;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-    margin-bottom: 40px;
+    background: #111;
+    padding: 28px;
+    border-radius: 10px;
+    border: 1px solid #222;
+    margin-bottom: 32px;
 }
 
 .add-stock-section h2 {
     margin-bottom: 20px;
-    color: #667eea;
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
 }
 
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 16px;
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-    color: #555;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #888;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
 .form-group input,
 .form-group textarea {
     width: 100%;
-    padding: 12px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 1rem;
-    transition: border-color 0.3s;
+    padding: 10px 12px;
+    border: 1px solid #333;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background: #0a0a0a;
+    color: #e0e0e0;
+    transition: border-color 0.2s;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: #555;
 }
 
 .form-group input:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #fff;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
 }
 
 .btn {
-    padding: 12px 24px;
+    padding: 10px 20px;
     border: none;
-    border-radius: 8px;
-    font-size: 1rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s;
-    margin-right: 10px;
+    transition: all 0.2s;
 }
 
 .btn-primary {
-    background: #667eea;
-    color: white;
+    background: #fff;
+    color: #000;
 }
 
 .btn-primary:hover {
-    background: #5568d3;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    background: #e0e0e0;
 }
 
 .btn-secondary {
-    background: #e0e0e0;
-    color: #555;
+    background: #222;
+    color: #ccc;
+    border: 1px solid #333;
 }
 
 .btn-secondary:hover {
-    background: #d0d0d0;
+    background: #2a2a2a;
+    border-color: #555;
 }
 
 .btn-danger {
-    background: #ef4444;
-    color: white;
-    padding: 8px 16px;
-    font-size: 0.9rem;
+    background: transparent;
+    color: #777;
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    border: 1px solid #333;
 }
 
 .btn-danger:hover {
-    background: #dc2626;
+    color: #ff4444;
+    border-color: #ff4444;
 }
 
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Stocks List Section */
 .stocks-section {
-    background: white;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    background: #111;
+    padding: 28px;
+    border-radius: 10px;
+    border: 1px solid #222;
 }
 
 .section-header {
@@ -130,115 +167,127 @@ header p {
 }
 
 .section-header h2 {
-    color: #667eea;
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .loading {
     text-align: center;
     padding: 40px;
-    color: #999;
-    font-size: 1.1rem;
+    color: #555;
+    font-size: 0.95rem;
 }
 
+/* Stock Cards */
 .stock-card {
-    border: 2px solid #f0f0f0;
-    border-radius: 12px;
+    border: 1px solid #222;
+    border-radius: 8px;
     padding: 20px;
-    margin-bottom: 20px;
-    transition: all 0.3s;
+    margin-bottom: 12px;
+    background: #0a0a0a;
+    transition: border-color 0.2s;
 }
 
 .stock-card:hover {
-    border-color: #667eea;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    border-color: #444;
 }
 
 .stock-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    margin-bottom: 16px;
 }
 
 .stock-symbol {
-    font-size: 1.8rem;
-    font-weight: bold;
-    color: #667eea;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.3px;
 }
 
 .stock-info {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin-bottom: 15px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
 }
 
 .info-item {
-    background: #f9fafb;
+    background: #151515;
     padding: 12px;
-    border-radius: 8px;
+    border-radius: 6px;
 }
 
 .info-label {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     color: #666;
     margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
 .info-value {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     font-weight: 600;
-    color: #333;
+    color: #e0e0e0;
 }
 
 .price-positive {
-    color: #10b981;
+    color: #4ade80;
 }
 
 .price-negative {
-    color: #ef4444;
+    color: #f87171;
 }
 
+/* Historical Prices Grid */
 .historical-prices {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 15px;
-    margin-bottom: 15px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
 }
 
 .historical-item {
-    background: #f0f4ff;
+    background: #151515;
     padding: 12px;
-    border-radius: 8px;
+    border-radius: 6px;
     text-align: center;
 }
 
 .historical-label {
-    font-size: 0.85rem;
-    color: #667eea;
+    font-size: 0.75rem;
+    color: #666;
     font-weight: 600;
     margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
 .historical-value {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 600;
-    color: #333;
+    color: #e0e0e0;
 }
 
 .historical-date {
-    font-size: 0.75rem;
-    color: #999;
+    font-size: 0.7rem;
+    color: #555;
     margin-top: 4px;
 }
 
 .stock-notes {
-    background: #fff9e6;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 15px;
-    font-style: italic;
-    color: #666;
+    background: #151515;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    color: #888;
+    font-size: 0.9rem;
+    border-left: 3px solid #333;
 }
 
 .stock-actions {
@@ -246,36 +295,88 @@ header p {
     justify-content: flex-end;
 }
 
+/* Change Badges */
 .change-badge {
     display: inline-block;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 0.9rem;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
     font-weight: 600;
+    font-variant-numeric: tabular-nums;
 }
 
 .change-positive {
-    background: #d1fae5;
-    color: #065f46;
+    background: rgba(74, 222, 128, 0.1);
+    color: #4ade80;
 }
 
 .change-negative {
-    background: #fee2e2;
-    color: #991b1b;
+    background: rgba(248, 113, 113, 0.1);
+    color: #f87171;
 }
 
+/* Toast Notifications */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.toast {
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s;
+    max-width: 360px;
+}
+
+.toast-success {
+    background: #1a1a1a;
+    color: #4ade80;
+    border: 1px solid #333;
+}
+
+.toast-error {
+    background: #1a1a1a;
+    color: #f87171;
+    border: 1px solid #333;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* Responsive */
 @media (max-width: 768px) {
     header h1 {
-        font-size: 2rem;
+        font-size: 1.8rem;
     }
 
-    .stock-info,
-    .historical-prices {
+    .form-row {
         grid-template-columns: 1fr;
+    }
+
+    .stock-info {
+        grid-template-columns: 1fr;
+    }
+
+    .historical-prices {
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .section-header {
         flex-direction: column;
-        gap: 15px;
+        gap: 12px;
     }
 }

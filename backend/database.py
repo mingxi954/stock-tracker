@@ -36,11 +36,11 @@ def init_db():
 def add_stock(symbol, date_noticed, price_noticed, notes=''):
     """Add a new stock to track."""
     with get_db() as conn:
-        conn.execute(
+        cursor = conn.execute(
             'INSERT INTO tracked_stocks (symbol, date_noticed, price_noticed, notes, created_at) VALUES (?, ?, ?, ?, ?)',
             (symbol.upper(), date_noticed, price_noticed, notes, datetime.now().isoformat())
         )
-        return conn.lastrowid
+        return cursor.lastrowid
 
 def get_all_stocks():
     """Get all tracked stocks."""

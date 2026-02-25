@@ -17,12 +17,14 @@ document.getElementById('addStockForm').addEventListener('submit', async (e) => 
     const priceNoticed = parseFloat(document.getElementById('priceNoticed').value);
     const notes = document.getElementById('notes').value;
 
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Adding...';
+
     try {
         const response = await fetch(`${API_BASE}/api/stocks`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 symbol,
                 date_noticed: dateNoticed,
@@ -32,28 +34,28 @@ document.getElementById('addStockForm').addEventListener('submit', async (e) => 
         });
 
         if (response.ok) {
-            // Clear form
             document.getElementById('addStockForm').reset();
             document.getElementById('dateNoticed').valueAsDate = new Date();
-
-            // Reload stocks
             loadStocks();
-            showMessage('Stock added successfully!', 'success');
+            showToast(`${symbol} added successfully`, 'success');
         } else {
             const error = await response.json();
-            showMessage(`Error: ${error.error}`, 'error');
+            showToast(error.error || 'Failed to add stock', 'error');
         }
     } catch (error) {
-        showMessage(`Error: ${error.message}`, 'error');
+        showToast(`Network error: ${error.message}`, 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Add Stock';
     }
 });
 
 // Fetch current price button
 document.getElementById('fetchPriceBtn').addEventListener('click', async () => {
-    const symbol = document.getElementById('symbol').value.toUpperCase();
+    const symbol = document.getElementById('symbol').value.trim().toUpperCase();
 
     if (!symbol) {
-        showMessage('Please enter a stock symbol first', 'error');
+        showToast('Enter a stock symbol first', 'error');
         return;
     }
 
@@ -67,12 +69,12 @@ document.getElementById('fetchPriceBtn').addEventListener('click', async () => {
         if (response.ok) {
             const data = await response.json();
             document.getElementById('priceNoticed').value = data.price;
-            showMessage(`Current price for ${symbol}: $${data.price}`, 'success');
+            showToast(`${symbol}: $${data.price}`, 'success');
         } else {
-            showMessage('Could not fetch price. Please check the symbol.', 'error');
+            showToast(`Could not fetch price for ${symbol}`, 'error');
         }
     } catch (error) {
-        showMessage(`Error: ${error.message}`, 'error');
+        showToast(`Network error: ${error.message}`, 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = 'Fetch Current Price';
@@ -81,7 +83,13 @@ document.getElementById('fetchPriceBtn').addEventListener('click', async () => {
 
 // Refresh button
 document.getElementById('refreshBtn').addEventListener('click', () => {
-    loadStocks();
+    const btn = document.getElementById('refreshBtn');
+    btn.disabled = true;
+    btn.textContent = 'Refreshing...';
+    loadStocks().finally(() => {
+        btn.disabled = false;
+        btn.textContent = 'Refresh Prices';
+    });
 });
 
 // Load all stocks
@@ -99,7 +107,7 @@ async function loadStocks() {
         loading.style.display = 'none';
 
         if (stocks.length === 0) {
-            container.innerHTML = '<p class="loading">No stocks tracked yet. Add one above!</p>';
+            container.innerHTML = '<p class="loading">No stocks tracked yet. Add one above.</p>';
             return;
         }
 
@@ -151,16 +159,14 @@ function createStockCard(stock) {
         </div>
 
         <div class="historical-prices">
-            ${createHistoricalItem('1 Day Ago', stock.price_1d)}
-            ${createHistoricalItem('1 Week Ago', stock.price_1wk)}
-            ${createHistoricalItem('1 Month Ago', stock.price_1mo)}
-            ${createHistoricalItem('3 Months Ago', stock.price_3mo)}
+            ${createHistoricalItem('1 Day', stock.price_1d)}
+            ${createHistoricalItem('1 Week', stock.price_1wk)}
+            ${createHistoricalItem('1 Month', stock.price_1mo)}
+            ${createHistoricalItem('3 Months', stock.price_3mo)}
         </div>
 
         ${stock.notes ? `
-            <div class="stock-notes">
-                <strong>Notes:</strong> ${stock.notes}
-            </div>
+            <div class="stock-notes">${stock.notes}</div>
         ` : ''}
 
         <div class="stock-actions">
@@ -177,7 +183,7 @@ function createHistoricalItem(label, priceData) {
         return `
             <div class="historical-item">
                 <div class="historical-label">${label}</div>
-                <div class="historical-value">N/A</div>
+                <div class="historical-value">--</div>
             </div>
         `;
     }
@@ -193,9 +199,7 @@ function createHistoricalItem(label, priceData) {
 
 // Delete stock
 async function deleteStock(id) {
-    if (!confirm('Are you sure you want to delete this stock?')) {
-        return;
-    }
+    if (!confirm('Delete this stock?')) return;
 
     try {
         const response = await fetch(`${API_BASE}/api/stocks/${id}`, {
@@ -204,12 +208,12 @@ async function deleteStock(id) {
 
         if (response.ok) {
             loadStocks();
-            showMessage('Stock deleted successfully', 'success');
+            showToast('Stock deleted', 'success');
         } else {
-            showMessage('Error deleting stock', 'error');
+            showToast('Error deleting stock', 'error');
         }
     } catch (error) {
-        showMessage(`Error: ${error.message}`, 'error');
+        showToast(`Error: ${error.message}`, 'error');
     }
 }
 
@@ -223,7 +227,15 @@ function formatDate(dateString) {
     });
 }
 
-// Show message (simple toast notification)
-function showMessage(message, type) {
-    alert(message);
+// Toast notification system
+function showToast(message, type) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
 }
