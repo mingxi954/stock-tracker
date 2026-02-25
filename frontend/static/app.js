@@ -124,9 +124,13 @@ async function loadStocks() {
             container.appendChild(createStockCard(stock));
         });
 
-        // Kick off chart loading for each stock (parallel, non-blocking)
+        // Render charts from bundled data (no extra API calls)
         stocks.forEach(stock => {
-            loadChart(`sym-${stock.symbol}`, stock.symbol, '1mo');
+            if (stock.chart_data && stock.chart_data.length > 0) {
+                renderChart(`sym-${stock.symbol}`, stock.chart_data);
+            } else {
+                loadChart(`sym-${stock.symbol}`, stock.symbol, '1mo');
+            }
         });
     } catch (error) {
         loading.style.display = 'none';
@@ -178,10 +182,7 @@ function createStockCard(stock) {
                                 <span class="entry-price">$${entry.price_noticed.toFixed(2)}</span>
                                 ${hasChange ? `<span class="change-badge ${badgeClass}">${sign}$${entry.change} (${sign}${entry.change_percent}%)</span>` : ''}
                             </div>
-                            <div class="entry-actions">
-                                ${entry.notes ? `<span class="entry-notes">${entry.notes}</span>` : ''}
-                                <button class="btn btn-danger" onclick="deleteStock(${entry.id})">Delete</button>
-                            </div>
+                            ${entry.notes ? `<div class="entry-actions"><span class="entry-notes">${entry.notes}</span></div>` : ''}
                         </div>
                     `;
                 }).join('')}
@@ -192,25 +193,6 @@ function createStockCard(stock) {
     return card;
 }
 
-// Delete stock
-async function deleteStock(id) {
-    if (!confirm('Delete this stock?')) return;
-
-    try {
-        const response = await fetch(`${API_BASE}/api/stocks/${id}`, {
-            method: 'DELETE'
-        });
-
-        if (response.ok) {
-            loadStocks();
-            showToast('Stock deleted', 'success');
-        } else {
-            showToast('Error deleting stock', 'error');
-        }
-    } catch (error) {
-        showToast(`Error: ${error.message}`, 'error');
-    }
-}
 
 // Format date
 function formatDate(dateString) {
@@ -222,10 +204,103 @@ function formatDate(dateString) {
     });
 }
 
-// Load chart for a stock card
-async function loadChart(stockId, symbol, period) {
+// Render chart from data array [{date, price}, ...]
+function renderChart(stockId, data) {
     const canvas = document.getElementById(`chart-${stockId}`);
     const loadingEl = document.getElementById(`chart-loading-${stockId}`);
+    if (!canvas) return;
+
+    if (!data || data.length === 0) {
+        loadingEl.textContent = 'No chart data available';
+        loadingEl.style.display = 'block';
+        canvas.style.display = 'none';
+        return;
+    }
+
+    loadingEl.style.display = 'none';
+    canvas.style.display = 'block';
+
+    const labels = data.map(d => d.date);
+    const prices = data.map(d => d.price);
+    const isUptrend = prices[prices.length - 1] >= prices[0];
+    const lineColor = isUptrend ? '#4ade80' : '#f87171';
+    const fillColor = isUptrend ? 'rgba(74, 222, 128, 0.08)' : 'rgba(248, 113, 113, 0.08)';
+
+    if (chartInstances[stockId]) {
+        chartInstances[stockId].destroy();
+    }
+
+    chartInstances[stockId] = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                data: prices,
+                borderColor: lineColor,
+                backgroundColor: fillColor,
+                borderWidth: 2,
+                fill: true,
+                pointRadius: 0,
+                pointHitRadius: 8,
+                tension: 0.3,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1a1a1a',
+                    titleColor: '#888',
+                    bodyColor: '#e0e0e0',
+                    borderColor: '#333',
+                    borderWidth: 1,
+                    titleFont: { size: 11 },
+                    bodyFont: { size: 13, weight: '600' },
+                    padding: 10,
+                    displayColors: false,
+                    callbacks: {
+                        label: ctx => `$${ctx.parsed.y.toFixed(2)}`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: '#555',
+                        maxTicksLimit: 6,
+                        font: { size: 10 },
+                    },
+                    grid: { display: false },
+                    border: { display: false },
+                },
+                y: {
+                    position: 'right',
+                    ticks: {
+                        color: '#555',
+                        maxTicksLimit: 5,
+                        font: { size: 10 },
+                        callback: v => '$' + v.toFixed(0),
+                    },
+                    grid: {
+                        color: 'rgba(255,255,255,0.04)',
+                    },
+                    border: { display: false },
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
+        }
+    });
+}
+
+// Load chart via API (used for period switching)
+async function loadChart(stockId, symbol, period) {
+    const loadingEl = document.getElementById(`chart-loading-${stockId}`);
+    const canvas = document.getElementById(`chart-${stockId}`);
     if (!canvas) return;
 
     loadingEl.style.display = 'block';
@@ -234,93 +309,7 @@ async function loadChart(stockId, symbol, period) {
     try {
         const response = await fetch(`${API_BASE}/api/history/${symbol}?period=${period}`);
         const result = await response.json();
-
-        loadingEl.style.display = 'none';
-        canvas.style.display = 'block';
-
-        if (!result.data || result.data.length === 0) {
-            loadingEl.textContent = 'No chart data available';
-            loadingEl.style.display = 'block';
-            canvas.style.display = 'none';
-            return;
-        }
-
-        const labels = result.data.map(d => d.date);
-        const prices = result.data.map(d => d.price);
-        const isUptrend = prices[prices.length - 1] >= prices[0];
-        const lineColor = isUptrend ? '#4ade80' : '#f87171';
-        const fillColor = isUptrend ? 'rgba(74, 222, 128, 0.08)' : 'rgba(248, 113, 113, 0.08)';
-
-        // Destroy existing chart instance
-        if (chartInstances[stockId]) {
-            chartInstances[stockId].destroy();
-        }
-
-        chartInstances[stockId] = new Chart(canvas, {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [{
-                    data: prices,
-                    borderColor: lineColor,
-                    backgroundColor: fillColor,
-                    borderWidth: 2,
-                    fill: true,
-                    pointRadius: 0,
-                    pointHitRadius: 8,
-                    tension: 0.3,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: '#1a1a1a',
-                        titleColor: '#888',
-                        bodyColor: '#e0e0e0',
-                        borderColor: '#333',
-                        borderWidth: 1,
-                        titleFont: { size: 11 },
-                        bodyFont: { size: 13, weight: '600' },
-                        padding: 10,
-                        displayColors: false,
-                        callbacks: {
-                            label: ctx => `$${ctx.parsed.y.toFixed(2)}`
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        ticks: {
-                            color: '#555',
-                            maxTicksLimit: 6,
-                            font: { size: 10 },
-                        },
-                        grid: { display: false },
-                        border: { display: false },
-                    },
-                    y: {
-                        position: 'right',
-                        ticks: {
-                            color: '#555',
-                            maxTicksLimit: 5,
-                            font: { size: 10 },
-                            callback: v => '$' + v.toFixed(0),
-                        },
-                        grid: {
-                            color: 'rgba(255,255,255,0.04)',
-                        },
-                        border: { display: false },
-                    }
-                },
-                interaction: {
-                    intersect: false,
-                    mode: 'index',
-                },
-            }
-        });
+        renderChart(stockId, result.data);
     } catch (error) {
         loadingEl.textContent = 'Failed to load chart';
         loadingEl.style.display = 'block';

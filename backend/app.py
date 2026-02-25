@@ -3,7 +3,13 @@ from flask_cors import CORS
 import yfinance as yf
 from datetime import datetime, timedelta
 from dateutil import parser
+from concurrent.futures import ThreadPoolExecutor
+import time
 import database
+
+# In-memory cache: key -> (timestamp, data)
+_cache = {}
+CACHE_TTL = 300  # 5 minutes
 
 app = Flask(__name__,
             template_folder='../frontend/templates',
@@ -13,8 +19,22 @@ CORS(app)
 # Initialize database
 database.init_db()
 
+def _cache_get(key):
+    if key in _cache:
+        ts, data = _cache[key]
+        if time.time() - ts < CACHE_TTL:
+            return data
+    return None
+
+def _cache_set(key, data):
+    _cache[key] = (time.time(), data)
+
 def get_current_price(symbol):
-    """Fetch current price for the given symbol."""
+    """Fetch current price for the given symbol (cached)."""
+    cached = _cache_get(f'price:{symbol}')
+    if cached is not None:
+        return cached
+
     try:
         stock = yf.Ticker(symbol)
 
@@ -22,7 +42,9 @@ def get_current_price(symbol):
         try:
             price = stock.fast_info.get('lastPrice')
             if price and price > 0:
-                return round(float(price), 2)
+                result = round(float(price), 2)
+                _cache_set(f'price:{symbol}', result)
+                return result
         except Exception:
             pass
 
@@ -32,14 +54,18 @@ def get_current_price(symbol):
             for key in ['currentPrice', 'regularMarketPrice', 'previousClose']:
                 price = info.get(key)
                 if price and price > 0:
-                    return round(float(price), 2)
+                    result = round(float(price), 2)
+                    _cache_set(f'price:{symbol}', result)
+                    return result
         except Exception:
             pass
 
         # Last resort: history
         data = stock.history(period='5d')
         if not data.empty:
-            return round(float(data['Close'].iloc[-1]), 2)
+            result = round(float(data['Close'].iloc[-1]), 2)
+            _cache_set(f'price:{symbol}', result)
+            return result
 
         return None
     except Exception as e:
@@ -73,24 +99,32 @@ def get_stocks():
             'notes': stock['notes'],
         })
 
-    result = []
-    for symbol, group in grouped.items():
-        try:
-            current_price = get_current_price(symbol)
-            group['current_price'] = current_price
+    symbols = list(grouped.keys())
 
-            # Calculate change for each entry
+    # Fetch current prices and default chart data in parallel
+    def fetch_symbol_data(sym):
+        price = get_current_price(sym)
+        history = get_daily_history(sym, '1mo')
+        return sym, price, history
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = {executor.submit(fetch_symbol_data, sym): sym for sym in symbols}
+        for future in futures:
+            sym, current_price, history = future.result()
+            group = grouped[sym]
+            group['current_price'] = current_price
+            group['chart_data'] = history
+
             for entry in group['entries']:
                 if current_price and entry['price_noticed']:
                     change = current_price - entry['price_noticed']
                     change_percent = (change / entry['price_noticed']) * 100
                     entry['change'] = round(change, 2)
                     entry['change_percent'] = round(change_percent, 2)
-        except Exception as e:
-            print(f"Error enriching stock {symbol}: {e}")
 
-        result.append(group)
-
+    result = list(grouped.values())
+    # Sort stocks so the one with the newest notice comes first
+    result.sort(key=lambda g: g['entries'][0]['date_noticed'] if g['entries'] else '', reverse=True)
     return jsonify(result)
 
 @app.route('/api/stocks', methods=['POST'])
@@ -126,7 +160,12 @@ def delete_stock(stock_id):
     return jsonify({'error': 'Stock not found'}), 404
 
 def get_daily_history(symbol, period='3mo'):
-    """Fetch daily close prices for the given symbol and period."""
+    """Fetch daily close prices for the given symbol and period (cached)."""
+    cache_key = f'history:{symbol}:{period}'
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     period_days = {
         '1mo': 31,
         '3mo': 92,
@@ -148,6 +187,7 @@ def get_daily_history(symbol, period='3mo'):
                 'date': idx.strftime('%Y-%m-%d'),
                 'price': round(float(row['Close']), 2)
             })
+        _cache_set(cache_key, data)
         return data
     except Exception as e:
         print(f"Error fetching daily history for {symbol}: {e}")
